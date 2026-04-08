@@ -18,6 +18,12 @@ DB_USER   = os.getenv("DB_USER")
 DB_NAME   = os.getenv("DB_NAME")
 REGION    = os.getenv("AWS_REGION", "ap-northeast-2")
 
+# ===========================================================
+# 커넥션 재사용 — Lambda 컨테이너가 살아있으면 재사용 (warm start)
+# 매 호출마다 새 연결을 맺지 않아 지연 감소
+# ===========================================================
+_conn = None
+
 # 대상 테이블
 TABLE_NAME = "item"
 
@@ -36,7 +42,16 @@ def _get_auth_token() -> str:
 
 
 def _get_connection():
-    return pymysql.connect(
+    global _conn
+    # 기존 연결이 살아있으면 재사용 (warm start 최적화)
+    try:
+        if _conn and _conn.open:
+            _conn.ping(reconnect=False)
+            return _conn
+    except Exception:
+        pass
+
+    _conn = pymysql.connect(
         host=DB_HOST,
         port=DB_PORT,
         user=DB_USER,
@@ -46,6 +61,7 @@ def _get_connection():
         connect_timeout=10,
         cursorclass=pymysql.cursors.DictCursor,
     )
+    return _conn
 
 
 def _response(status_code, body):

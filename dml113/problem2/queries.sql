@@ -148,3 +148,137 @@ WHERE region = '<region>'
   AND (name LIKE '%<keyword1>%' OR name LIKE '%<keyword2>%')
 ORDER BY value DESC
 LIMIT <n>;
+
+
+-- ── CTE (WITH 절) ─────────────────────────────────────────
+
+-- 단순 CTE
+WITH ranked AS (
+  SELECT
+    *,
+    RANK() OVER (PARTITION BY region ORDER BY value DESC) AS rnk
+  FROM wsi_db.wsi_table
+)
+SELECT * FROM ranked WHERE rnk <= 3;
+
+-- 다중 CTE
+WITH
+  total AS (
+    SELECT region, SUM(value) AS total_value
+    FROM wsi_db.wsi_table
+    GROUP BY region
+  ),
+  avg_all AS (
+    SELECT AVG(value) AS avg_value
+    FROM wsi_db.wsi_table
+  )
+SELECT t.region, t.total_value, a.avg_value
+FROM total t
+CROSS JOIN avg_all a
+ORDER BY t.total_value DESC;
+
+
+-- ── 서브쿼리 ──────────────────────────────────────────────
+
+-- WHERE 절 서브쿼리 (평균 이상만 조회)
+SELECT * FROM wsi_db.wsi_table
+WHERE value > (SELECT AVG(value) FROM wsi_db.wsi_table);
+
+-- IN 서브쿼리
+SELECT * FROM wsi_db.wsi_table
+WHERE region IN (
+  SELECT region FROM wsi_db.wsi_table
+  GROUP BY region
+  HAVING COUNT(*) >= <min_count>
+);
+
+-- FROM 절 인라인 뷰
+SELECT region, max_val
+FROM (
+  SELECT region, MAX(value) AS max_val
+  FROM wsi_db.wsi_table
+  GROUP BY region
+) t
+WHERE max_val > <threshold>;
+
+
+-- ── CASE WHEN ─────────────────────────────────────────────
+
+-- 값 분류
+SELECT
+  id,
+  name,
+  value,
+  CASE
+    WHEN value >= 1000 THEN 'high'
+    WHEN value >= 500  THEN 'mid'
+    ELSE 'low'
+  END AS grade
+FROM wsi_db.wsi_table;
+
+-- 조건별 집계 (PIVOT 대용)
+SELECT
+  COUNT(CASE WHEN region = 'Seoul'  THEN 1 END) AS seoul_cnt,
+  COUNT(CASE WHEN region = 'Busan'  THEN 1 END) AS busan_cnt,
+  COUNT(CASE WHEN region = 'Daegu'  THEN 1 END) AS daegu_cnt,
+  SUM(CASE WHEN region = 'Seoul'    THEN value ELSE 0 END) AS seoul_total
+FROM wsi_db.wsi_table;
+
+
+-- ── 문자열 함수 ───────────────────────────────────────────
+
+SELECT
+  id,
+  name,
+  LOWER(name)                          AS name_lower,
+  UPPER(name)                          AS name_upper,
+  LENGTH(name)                         AS name_len,
+  SUBSTR(name, 1, 3)                   AS name_prefix,
+  REPLACE(name, '<old>', '<new>')      AS name_replaced,
+  TRIM(name)                           AS name_trimmed,
+  SPLIT_PART(name, '-', 1)             AS name_part1,   -- 구분자로 분리 후 N번째
+  CONCAT(name, '-', CAST(id AS VARCHAR)) AS name_with_id,
+  REGEXP_REPLACE(name, '[^a-zA-Z0-9]', '') AS name_clean
+FROM wsi_db.wsi_table;
+
+
+-- ── CAST / 타입 변환 ──────────────────────────────────────
+
+SELECT
+  CAST(id AS VARCHAR)            AS id_str,
+  CAST('123' AS INT)             AS str_to_int,
+  CAST(value AS INT)             AS value_int,
+  CAST(created_at AS DATE)       AS created_date,
+  CAST(created_at AS TIMESTAMP)  AS created_ts,
+  DATE_FORMAT(DATE(created_at), '%Y-%m') AS year_month
+FROM wsi_db.wsi_table;
+
+
+-- ── DISTINCT / 중복 제거 ───────────────────────────────────
+
+SELECT DISTINCT region FROM wsi_db.wsi_table;
+
+SELECT COUNT(DISTINCT region) AS unique_regions FROM wsi_db.wsi_table;
+
+
+-- ── COALESCE / NULL 대체 ───────────────────────────────────
+
+SELECT
+  id,
+  COALESCE(name, 'unknown')    AS name,
+  COALESCE(value, 0)           AS value,
+  NULLIF(value, 0)             AS value_no_zero   -- 0이면 NULL로
+FROM wsi_db.wsi_table;
+
+
+-- ── 숫자 함수 ─────────────────────────────────────────────
+
+SELECT
+  id,
+  value,
+  ROUND(value, 2)              AS value_rounded,
+  CEIL(value)                  AS value_ceil,
+  FLOOR(value)                 AS value_floor,
+  ABS(value)                   AS value_abs,
+  MOD(id, 2)                   AS is_even          -- 0이면 짝수
+FROM wsi_db.wsi_table;

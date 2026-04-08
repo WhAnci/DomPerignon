@@ -1,0 +1,11 @@
+id,name,value,region,created_at
+1,item-alpha,150.5,Seoul,2025-01-10
+2,item-beta,320.0,Busan,2025-01-15
+3,item-gamma,89.9,Daegu,2025-02-03
+4,item-delta,540.0,Seoul,2025-02-20
+5,item-epsilon,210.75,Incheon,2025-03-05
+6,item-zeta,980.0,Busan,2025-03-18
+7,item-eta,45.0,Daegu,2025-04-01
+8,item-theta,1200.5,Seoul,2025-04-22
+9,item-iota,670.25,Incheon,2025-05-10
+10,item-kappa,330.0,Busan,2025-05-30
